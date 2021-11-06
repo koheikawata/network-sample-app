@@ -1,0 +1,10 @@
+variables:
+  - name: BASE_NAME
+    value: 'sample'
+  - name: ENVIRONMENT_SYMBOL
+    value: 'dev'
+  - name: LOCATION
+    value: 'japaneast'
+ # App Service
+  - name: APPSRVPLAN_SKU
+    value: 'D1'

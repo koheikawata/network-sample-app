@@ -1,0 +1,57 @@
+trigger: none
+
+variables:
+- template: ../iac/iac-variables-template.yml
+- group: vg-sample
+
+jobs:
+- job: WebApiBuildDeploy
+  pool:
+    vmImage: windows-latest
+  steps:
+  - task: UseDotNet@2
+    displayName: Use .NET 5 sdk
+    inputs:
+      packageType: sdk
+      version: 5.0.x
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+  - task: DotNetCoreCLI@2
+    displayName: dotnet restore
+    inputs:
+      command: restore
+      projects: $(System.DefaultWorkingDirectory)/src/TravelApi/TravelApi/TravelApi.csproj
+  - task: DotNetCoreCLI@2
+    displayName: dotnet build
+    inputs:
+      command: build
+      projects: $(System.DefaultWorkingDirectory)/src/TravelApi/TravelApi/TravelApi.csproj
+      arguments: --configuration Release /WarnAsError
+  - task: DotNetCoreCLI@2
+    displayName: Publish build
+    inputs:
+      command: publish
+      projects: $(System.DefaultWorkingDirectory)/src/TravelApi/TravelApi/TravelApi.csproj
+      publishWebProjects: false
+      arguments: --configuration Release --output $(Build.ArtifactStagingDirectory)
+      zipAfterPublish: true
+  - task: PublishBuildArtifacts@1
+    displayName: Publish build artifacts
+    inputs:
+      PathtoPublish: $(Build.ArtifactStagingDirectory)
+      ArtifactName: TravelApi
+      publishLocation: Container
+  - task: DownloadBuildArtifacts@0
+    displayName: Download artifacts
+    inputs:
+      buildType: current
+      downloadType: single
+      artifactName: TravelApi
+      downloadPath: $(System.DefaultWorkingDirectory)
+  - task: AzureRmWebAppDeployment@4
+    displayName: Deploy Web App
+    inputs:
+      ConnectionType: AzureRM
+      azureSubscription: $(AZURE_RM_SVC_CONNECTION)
+      appType: webApp
+      WebAppName: ase-$(BASE_NAME)-$(ENVIRONMENT_SYMBOL)
+      packageForLinux: $(System.DefaultWorkingDirectory)/**/*.zip

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+/* iac-variables-template.yml */
+    "base_name": {
+      "type": "string",
+      "maxLength": 10,
+      "minLength": 3,
+      "metadata": {
+        "description": "From iac-variables-template.yml"
+      }
+    },
+    "environment_symbol": {
+      "type": "string",
+      "metadata": {
+        "description": "From iac-variables-template.yml"
+      }
+    },
+    "appsrvplan_sku": {
+      "type": "string",
+      "allowedValues": [
+        "F1",
+        "D1",
+        "B1",
+        "B2",
+        "B3",
+        "S1",
+        "S2",
+        "S3"
+      ],
+      "metadata": {
+        "description": "From iac-variables-template.yml"
+      }
+    }
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "appsrvplan_name": "[concat('plan-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
+    "appsrv_name": "[concat('ase-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2021-03-01",
+      "name": "[variables('appsrvplan_name')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "[parameters('appsrvplan_sku')]"
+      },
+      "kind": "app"
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2021-03-01",
+      "name": "[variables('appsrv_name')]",
+      "location": "[variables('location')]",
+      "kind": "app",
+      "dependsOn": [
+          "[resourceId('Microsoft.Web/serverfarms', variables('appsrvplan_name'))]"
+      ],
+      "identity": {
+          "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appsrvplan_name'))]",
+        "siteConfig": {
+          "netFrameworkVersion": "v5.0"
+        }
+      }
+    }
+  ]
+}
