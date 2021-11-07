@@ -9,6 +9,35 @@ jobs:
   pool:
     vmImage: windows-latest
   steps:
+  - task: AzurePowerShell@5
+    inputs:
+      azureSubscription: $(AZURE_RM_SVC_CONNECTION)
+      azurePowerShellVersion: latestVersion
+      errorActionPreference: silentlyContinue
+      ScriptType: InlineScript
+      Inline: |
+        Install-Module -Name Az.ManagedServiceIdentity
+        $rgname = "rg-$env:BASE_NAME-$env:ENVIRONMENT_SYMBOL"
+        if(!(Get-AzResourceGroup -Name $rgname)){
+          New-AzResourceGroup -Name $rgname -Location $env:LOCATION
+        }
+        $kvName = "kv-$env:BASE_NAME-$env:ENVIRONMENT_SYMBOL"
+        if(!(Get-AzKeyVault -VaultName $kvName)){
+          $keyVault = New-AzKeyVault -Name $kvName -ResourceGroupName $rgname -Location $env:LOCATION
+        }
+        Set-AzKeyVaultAccessPolicy -VaultName $kvName -PermissionsToCertificates get,create -ObjectId $env:SVC_CONNECTION_OBJECT_ID
+        if(!(Get-AzKeyVaultCertificate -VaultName $kvName -Name $env:KV_AGW_CERT_NAME)){
+          $policy = New-AzKeyVaultCertificatePolicy `
+                    -ValidityInMonths 12 `
+                    -SubjectName "CN=$env:BASE_NAME-$env:ENVIRONMENT_SYMBOL.japaneast.cloudapp.azure.com" `
+                    -IssuerName self `
+                    -RenewAtNumberOfDaysBeforeExpiry 30
+          Add-AzKeyVaultCertificate -VaultName $kvName -Name $env:KV_AGW_CERT_NAME -CertificatePolicy $policy
+        }
+        $certificate = Get-AzKeyVaultCertificate -VaultName $kvName  -Name $env:KV_AGW_CERT_NAME
+        $certificateVersion = $certificate.Version
+        Write-Host "##vso[task.setvariable variable=agwCertVersion;]$certificateVersion"
+    displayName: Create Key Vault and certificate
   - task: AzureResourceManagerTemplateDeployment@3
     inputs:
       azureResourceManagerConnection: $(AZURE_RM_SVC_CONNECTION)
@@ -17,8 +46,19 @@ jobs:
       location: $(LOCATION)
       templateLocation: Linked artifact
       csmFile: $(Build.SourcesDirectory)/arm-templates/azuredeploy.json
-      overrideParameters: "-base_name $(BASE_NAME)
+      overrideParameters: "-svc_connection_object_id $(SVC_CONNECTION_OBJECT_ID)
+                          -base_name $(BASE_NAME)
                           -environment_symbol $(ENVIRONMENT_SYMBOL)
-                          -appsrvplan_sku $(APPSRVPLAN_SKU)"
+                          -appsrvplan_sku $(APPSRVPLAN_SKU)
+                          -keyvault_sku $(KEYVAULT_SKU)
+                          -kv_agw_cert_name $(KV_AGW_CERT_NAME)
+                          -kv_agw_cert_version $(agwCertVersion)
+                          -vnet_address_space $(VNET_ADDRESS_SPACE)
+                          -agw_snet_address_range $(AGW_SNET_ADDRESS_RANGE)
+                          -backend_snet_address_range $(BACKEND_SNET_ADDRESS_RANGE)
+                          -domain_name_label $(DOMAIN_NAME_LABEL)
+                          -agw_sku_name $(AGW_SKU_NAME)
+                          -agw_sku_tier $(AGW_SKU_TIER)
+                          -agw_sku_capacity $(AGW_SKU_CAPACITY)"
       deploymentMode: Incremental
     displayName: Deploy Azure resources to the environment

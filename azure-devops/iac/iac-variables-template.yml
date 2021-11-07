@@ -8,3 +8,25 @@ variables:
  # App Service
   - name: APPSRVPLAN_SKU
     value: 'D1'
+  # Key Vault
+  - name: KEYVAULT_SKU
+    value: 'standard'
+  - name: KV_AGW_CERT_NAME
+    value: 'agwCert'
+  # Public IP Address
+  - name: Domain_NAME_LABEL
+    value: 'sampletravelapp'
+  # Virtual Network
+  - name: VNET_ADDRESS_SPACE
+    value: '10.0.0.0/16'
+  - name: AGW_SNET_ADDRESS_RANGE
+    value: '10.0.0.0/24'
+  - name: BACKEND_SNET_ADDRESS_RANGE
+    value: '10.0.1.0/24'
+  # Application Gateway
+  - name: AGW_SKU_NAME
+    value: 'Standard_v2'
+  - name: AGW_SKU_TIER
+    value: 'Standard_v2'
+  - name: AGW_SKU_CAPACITY
+    value: 2
