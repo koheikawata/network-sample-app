@@ -7,7 +7,9 @@ variables:
     value: 'japaneast'
  # App Service
   - name: APPSRVPLAN_SKU
-    value: 'D1'
+    value: 'S1'
+  - name: APPSRV_HEALTH_PATH
+    value: '/health'
   # Key Vault
   - name: KEYVAULT_SKU
     value: 'standard'
@@ -21,8 +23,6 @@ variables:
     value: '10.0.0.0/16'
   - name: AGW_SNET_ADDRESS_RANGE
     value: '10.0.0.0/24'
-  - name: BACKEND_SNET_ADDRESS_RANGE
-    value: '10.0.1.0/24'
   # Application Gateway
   - name: AGW_SKU_NAME
     value: 'Standard_v2'

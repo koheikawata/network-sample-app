@@ -29,14 +29,11 @@ jobs:
         if(!(Get-AzKeyVaultCertificate -VaultName $kvName -Name $env:KV_AGW_CERT_NAME)){
           $policy = New-AzKeyVaultCertificatePolicy `
                     -ValidityInMonths 12 `
-                    -SubjectName "CN=$env:BASE_NAME-$env:ENVIRONMENT_SYMBOL.japaneast.cloudapp.azure.com" `
+                    -SubjectName "CN=$env:Domain_NAME_LABEL.$env:LOCATION.cloudapp.azure.com" `
                     -IssuerName self `
                     -RenewAtNumberOfDaysBeforeExpiry 30
           Add-AzKeyVaultCertificate -VaultName $kvName -Name $env:KV_AGW_CERT_NAME -CertificatePolicy $policy
         }
-        $certificate = Get-AzKeyVaultCertificate -VaultName $kvName  -Name $env:KV_AGW_CERT_NAME
-        $certificateVersion = $certificate.Version
-        Write-Host "##vso[task.setvariable variable=agwCertVersion;]$certificateVersion"
     displayName: Create Key Vault and certificate
   - task: AzureResourceManagerTemplateDeployment@3
     inputs:
@@ -50,12 +47,11 @@ jobs:
                           -base_name $(BASE_NAME)
                           -environment_symbol $(ENVIRONMENT_SYMBOL)
                           -appsrvplan_sku $(APPSRVPLAN_SKU)
+                          -appsrv_health_path $(APPSRV_HEALTH_PATH)
                           -keyvault_sku $(KEYVAULT_SKU)
                           -kv_agw_cert_name $(KV_AGW_CERT_NAME)
-                          -kv_agw_cert_version $(agwCertVersion)
                           -vnet_address_space $(VNET_ADDRESS_SPACE)
                           -agw_snet_address_range $(AGW_SNET_ADDRESS_RANGE)
-                          -backend_snet_address_range $(BACKEND_SNET_ADDRESS_RANGE)
                           -domain_name_label $(DOMAIN_NAME_LABEL)
                           -agw_sku_name $(AGW_SKU_NAME)
                           -agw_sku_tier $(AGW_SKU_TIER)

@@ -40,6 +40,12 @@
         "description": "From iac-variables-template.yml"
       }
     },
+    "appsrv_health_path": {
+      "type": "string",
+      "metadata": {
+        "description": "From iac-variables-template.yml"
+      }
+    },
     "keyvault_sku": {
       "type": "string",
       "allowedValues": [
@@ -51,12 +57,6 @@
       }
     },
     "kv_agw_cert_name": {
-      "type": "string",
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "kv_agw_cert_version": {
       "type": "string",
       "metadata": {
         "description": "From iac-variables-template.yml"
@@ -75,12 +75,6 @@
       }
     },
     "agw_snet_address_range": {
-      "type": "string",
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "backend_snet_address_range": {
       "type": "string",
       "metadata": {
         "description": "From iac-variables-template.yml"
@@ -136,41 +130,11 @@
     "public_ip_address_name": "[concat('pip-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
     "vnet_name": "[concat('vnet-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
     "agw_subnet_name": "[concat('snet-agw-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
-    "backend_subnet_name": "[concat('snet-be-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
     "agw_name": "[concat('agw-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
-    "agw_kv_cert_secret_id": "[concat('https://', variables('keyvault_name'), '.vault.azure.net/secrets/', parameters('kv_agw_cert_name'), '/', parameters('kv_agw_cert_version'))]",
+    "agw_kv_cert_secret_id": "[concat('https://', variables('keyvault_name'), '.vault.azure.net/secrets/', parameters('kv_agw_cert_name'))]",
     "user_assigned_identity": "[concat('/subscriptions/', variables('subscription_id'), '/resourcegroups/', variables('resource_group_name'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', variables('managed_identity_name'))]"
   },
   "resources": [
-    {
-      "type": "Microsoft.Web/serverfarms",
-      "apiVersion": "2021-03-01",
-      "name": "[variables('appsrvplan_name')]",
-      "location": "[variables('location')]",
-      "sku": {
-        "name": "[parameters('appsrvplan_sku')]"
-      },
-      "kind": "app"
-    },
-    {
-      "type": "Microsoft.Web/sites",
-      "apiVersion": "2021-03-01",
-      "name": "[variables('appsrv_name')]",
-      "location": "[variables('location')]",
-      "kind": "app",
-      "dependsOn": [
-          "[resourceId('Microsoft.Web/serverfarms', variables('appsrvplan_name'))]"
-      ],
-      "identity": {
-          "type": "SystemAssigned"
-      },
-      "properties": {
-        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appsrvplan_name'))]",
-        "siteConfig": {
-          "netFrameworkVersion": "v5.0"
-        }
-      }
-    },
     {
       "type": "Microsoft.KeyVault/vaults",
       "apiVersion": "2021-06-01-preview",
@@ -214,7 +178,9 @@
               "secrets": [
                 "Get"
               ],
-              "certificates": []
+              "certificates": [
+                "Get"
+              ]
             }
           }
         ]
@@ -258,16 +224,60 @@
           {
             "name": "[variables('agw_subnet_name')]",
             "properties": {
-              "addressPrefix": "[parameters('agw_snet_address_range')]"
-            }
-          },
-          {
-            "name": "[variables('backend_subnet_name')]",
-            "properties": {
-              "addressPrefix": "[parameters('backend_snet_address_range')]"
+              "addressPrefix": "[parameters('agw_snet_address_range')]",
+              "serviceEndpoints": [
+                {
+                  "service": "Microsoft.Web",
+                  "locations": [
+                    "*"
+                  ]
+                }
+              ]
             }
           }
         ]
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2021-03-01",
+      "name": "[variables('appsrvplan_name')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "[parameters('appsrvplan_sku')]"
+      },
+      "kind": "app"
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2021-03-01",
+      "name": "[variables('appsrv_name')]",
+      "location": "[variables('location')]",
+      "kind": "app",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appsrvplan_name'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnet_name'))]"
+      ],
+      "identity": {
+          "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appsrvplan_name'))]",
+        "httpsOnly": "true",
+        "siteConfig": {
+          "netFrameworkVersion": "v5.0",
+          "http20Enabled": "true",
+          "minTlsVersion": "1.2",
+          "healthCheckPath": "[parameters('appsrv_health_path')]",
+          "ipSecurityRestrictions": [
+            {
+              "vnetSubnetResourceId": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', variables('vnet_name'), variables('agw_subnet_name'))]",
+              "action": "Allow",
+              "priority": 100,
+              "name": "AllowAppGatewaySubnet"
+            }
+          ]
+        }
       }
     },
     {
@@ -288,6 +298,7 @@
         }
       },
       "properties": {
+        "enableHttp2": true,
         "sku": {
           "name": "[parameters('agw_sku_name')]",
           "tier": "[parameters('agw_sku_tier')]",
@@ -345,10 +356,14 @@
           {
             "name": "appGatewayBackendHttpSettings",
             "properties": {
-              "port": 80,
-              "protocol": "Http",
+              "port": 443,
+              "protocol": "Https",
               "cookieBasedAffinity": "Disabled",
-              "pickHostNameFromBackendAddress": true
+              "pickHostNameFromBackendAddress": true,
+              "ProbeEnabled": true,
+              "Probe": {
+                "id": "[resourceId('Microsoft.Network/applicationGateways/probes/',variables('agw_name'), 'BackendProbe')]"
+              }
             }
           }
         ],
@@ -383,6 +398,20 @@
               "backendHttpSettings": {
                 "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection',variables('agw_name'), 'appGatewayBackendHttpSettings')]"
               }
+            }
+          }
+        ],
+        "probes": [
+          {
+            "Name": "BackendProbe",
+            "properties": {
+              "Protocol": "Https",
+              "Path": "[parameters('appsrv_health_path')]",
+              "Interval": 30,
+              "Timeout": 10,
+              "UnhealthyThreshold": 3,
+              "MinServers": 0,
+              "PickHostNameFromBackendHttpSettings": true
             }
           }
         ]
