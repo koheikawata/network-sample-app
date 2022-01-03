@@ -1,0 +1,77 @@
+trigger: none
+
+pool:
+  vmImage: windows-latest
+
+variables:
+- template: ../variables-template.yml
+- group: vg-sample
+- name: BuildConfiguration
+  value: Release
+- name: SolutionPath
+  value: $(Build.SourcesDirectory)/src/TravelDatabase/TravelDatabase.sln
+- name: PublishPath
+  value: $(Build.SourcesDirectory)/src/TravelDatabase/TravelDatabase/bin/$(BuildConfiguration)
+- name: DacpacFileName
+  value: TravelDatabase.dacpac
+- name: ArtifactName
+  value: SqlBuildOutputs
+- name: SqlServerName
+  value: sql-$(BASE_NAME)-$(ENVIRONMENT_SYMBOL)
+- name: SqlDbName
+  value: sqldb-$(BASE_NAME)-$(ENVIRONMENT_SYMBOL)
+- name: KeyVaultName
+  value: kv-$(BASE_NAME)-$(ENVIRONMENT_SYMBOL)
+
+stages:
+- stage: Build
+  displayName: Build
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: windows-latest
+    steps:
+    - task: VSBuild@1
+      displayName: Build SQL project
+      inputs:
+        solution: $(SolutionPath)
+        platform: Any CPU
+        configuration: $(BuildConfiguration)
+    - task: PublishPipelineArtifact@1
+      displayName: Publish SQL project
+      inputs:
+        targetPath: $(PublishPath)
+        artifactName: $(ArtifactName)
+- stage: Deploy
+  displayName: Deploy
+  jobs:
+  - job: Deploy
+    displayName: Deploy
+    pool:
+      vmImage: windows-latest
+    steps:
+    - task: AzureKeyVault@2
+      inputs:
+        connectedServiceName: $(AZURE_RM_SVC_CONNECTION)
+        keyVaultName: $(KeyVaultName)
+        secretsFilter: sqladminpassword
+        runAsPreJob: false
+      displayName: Get SQL Admin secret from Key Vault
+    - task: DownloadPipelineArtifact@2
+      displayName: Download DACPAC
+      inputs:
+        artifact: $(ArtifactName)
+        downloadPath: $(Build.StagingDirectory)
+    - task: SqlAzureDacpacDeployment@1
+      displayName: Deploy DACPAC
+      inputs:
+        azureSubscription: $(AZURE_RM_SVC_CONNECTION)
+        AuthenticationType: server
+        SqlUsername: $(SQL_ADMIN_LOGIN_NAME)
+        SqlPassword: $(sqladminpassword)
+        ServerName: $(SqlServerName).database.windows.net
+        DatabaseName: $(SqlDbName)
+        ipDetectionMethod: AutoDetect
+        DeleteFirewallRule: true
+        DacpacFile: $(Build.StagingDirectory)/$(DacpacFileName)

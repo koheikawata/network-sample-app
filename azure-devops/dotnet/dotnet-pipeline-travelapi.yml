@@ -1,0 +1,68 @@
+trigger: none
+
+variables:
+- template: ../variables-template.yml
+- group: vg-sample
+- name: DotnetPath
+  value: $(Agent.ToolsDirectory)/dotnet
+- name: ProjectPath
+  value: $(Build.SourcesDirectory)/src/TravelApi/TravelApi/TravelApi.csproj
+- name: PublishPath
+  value: $(Build.SourcesDirectory)/publish
+- name: ArtifactName
+  value: TravelApiBuildOutputs
+- name: PackageFileName
+  value: TravelApi.zip
+- name: AppServiceName
+  value: ase-$(BASE_NAME)-$(ENVIRONMENT_SYMBOL)
+
+jobs:
+- job: WebApiBuildDeploy
+  pool:
+    vmImage: windows-2022
+  steps:
+  - task: UseDotNet@2
+    displayName: Use .NET 6 sdk
+    inputs:
+      packageType: sdk
+      version: 6.0.x
+      installationPath: $(DotnetPath)
+  - task: DotNetCoreCLI@2
+    displayName: dotnet restore
+    inputs:
+      command: restore
+      projects: $(ProjectPath)
+  - task: DotNetCoreCLI@2
+    displayName: dotnet build
+    inputs:
+      command: build
+      projects: $(ProjectPath)
+      arguments: --configuration Release /WarnAsError
+  - task: DotNetCoreCLI@2
+    displayName: Publish build
+    inputs:
+      command: publish
+      projects: $(ProjectPath)
+      publishWebProjects: false
+      zipAfterPublish: true
+      arguments: --configuration Release --output $(PublishPath)
+  - task: PublishBuildArtifacts@1
+    displayName: Publish build artifacts
+    inputs:
+      PathtoPublish: $(PublishPath)
+      ArtifactName: $(ArtifactName)
+      publishLocation: Container
+  - task: DownloadBuildArtifacts@0
+    displayName: Download artifacts
+    inputs:
+      buildType: current
+      downloadType: single
+      artifactName: $(ArtifactName)
+      downloadPath: $(Build.StagingDirectory)
+  - task: AzureWebApp@1
+    displayName: Deploy Web App
+    inputs:
+      azureSubscription: $(AZURE_RM_SVC_CONNECTION)
+      appType: webApp
+      appName: $(AppServiceName)
+      packageFor: $(Build.StagingDirectory)/$(ArtifactName)/$(PackageFileName)

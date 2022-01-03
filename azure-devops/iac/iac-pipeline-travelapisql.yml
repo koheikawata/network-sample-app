@@ -1,0 +1,97 @@
+trigger: none
+
+variables:
+- template: ../variables-template.yml
+- group: vg-sample
+- name: ResourceGroupName
+  value: rg-$(BASE_NAME)-$(ENVIRONMENT_SYMBOL)
+- name: KeyVaultName
+  value: kv-$(BASE_NAME)-$(ENVIRONMENT_SYMBOL)
+
+jobs:
+- job: AzureResourceGroupDeployment
+  pool:
+    vmImage: windows-latest
+  steps:
+  - task: PowerShell@2
+    condition: eq(variables['SQL_ADMIN_LOGIN_PASS'], '')
+    inputs:
+      targetType: inline
+      script: |
+        Write-Host "##vso[task.setvariable variable=HasSqlAdminPass;]true"
+    displayName: Judge secret for SQL Admin
+  - task: AzureKeyVault@1
+    condition: eq(variables['HasSqlAdminPass'], 'true')
+    inputs:
+      azureSubscription: $(AZURE_RM_SVC_CONNECTION)
+      KeyVaultName: $(KeyVaultName)
+      SecretsFilter: sqladminpassword
+      RunAsPreJob: false
+    displayName: Get SQL Admin secret from Key Vault
+  - task: PowerShell@2
+    condition: eq(variables['HasSqlAdminPass'], 'true')
+    inputs:
+      targetType: inline
+      script: |
+        Write-Host "##vso[task.setvariable variable=SQL_ADMIN_LOGIN_PASS;]$env:sql_admin_login_pass"
+    env:
+      sql_admin_login_pass: $(sqladminpassword)
+    displayName: Overwrite SQL Admin password variable
+  - task: AzurePowerShell@5
+    inputs:
+      azureSubscription: $(AZURE_RM_SVC_CONNECTION)
+      azurePowerShellVersion: latestVersion
+      errorActionPreference: silentlyContinue
+      ScriptType: InlineScript
+      Inline: |
+        Install-Module -Name Az.ManagedServiceIdentity
+        $rgname = "rg-$env:BASE_NAME-$env:ENVIRONMENT_SYMBOL"
+        if(!(Get-AzResourceGroup -Name $rgname)){
+          New-AzResourceGroup -Name $rgname -Location $env:LOCATION
+        }
+        $kvName = "kv-$env:BASE_NAME-$env:ENVIRONMENT_SYMBOL"
+        if(!(Get-AzKeyVault -VaultName $kvName)){
+          $keyVault = New-AzKeyVault -Name $kvName -ResourceGroupName $rgname -Location $env:LOCATION
+        }
+        Set-AzKeyVaultAccessPolicy -VaultName $kvName -PermissionsToCertificates get,create -ObjectId $env:SVC_CONNECTION_OBJECT_ID
+        if(!(Get-AzKeyVaultCertificate -VaultName $kvName -Name $env:KVCERT_NAME_AGW)){
+          $policy = New-AzKeyVaultCertificatePolicy `
+                    -ValidityInMonths 12 `
+                    -SubjectName "CN=ase-$env:BASE_NAME-$env:ENVIRONMENT_SYMBOL.$env:LOCATION.cloudapp.azure.com" `
+                    -IssuerName self `
+                    -RenewAtNumberOfDaysBeforeExpiry 30
+          Add-AzKeyVaultCertificate -VaultName $kvName -Name $env:KVCERT_NAME_AGW -CertificatePolicy $policy
+        }
+    displayName: Create Key Vault and certificate
+  - task: AzureResourceManagerTemplateDeployment@3
+    inputs:
+      azureResourceManagerConnection: $(AZURE_RM_SVC_CONNECTION)
+      action: Create Or Update Resource Group
+      resourceGroupName: $(ResourceGroupName)
+      location: $(LOCATION)
+      templateLocation: Linked artifact
+      csmFile: $(Build.SourcesDirectory)/arm-templates/azuredeploy-travelapisql.json
+      overrideParameters: "-sql_admin_login_pass $(SQL_ADMIN_LOGIN_PASS)
+                          -svc_connection_object_id $(SVC_CONNECTION_OBJECT_ID)
+                          -svc_connection_aad_name $(SVC_CONNECTION_AAD_NAME)
+                          -base_name $(BASE_NAME)
+                          -environment_symbol $(ENVIRONMENT_SYMBOL)
+                          -appsrvplan_sku $(APPSRVPLAN_SKU)
+                          -appsrv_health_path $(APPSRV_HEALTH_PATH)
+                          -keyvault_sku $(KEYVAULT_SKU)
+                          -kvcert_name_agw $(KVCERT_NAME_AGW)
+                          -kvsecret_name_sqladmin $(KVSECRET_NAME_SQLADMIN)
+                          -kvsecret_name_sqlcs $(KVSECRET_NAME_SQLCS)
+                          -sqldb_sku_name $(SQLDB_SKU_NAME)
+                          -sqldb_sku_tier $(SQLDB_SKU_TIER)
+                          -sql_admin_login_name $(SQL_ADMIN_LOGIN_NAME)
+                          -vnet_address_space $(VNET_ADDRESS_SPACE)
+                          -subnet_address_range_agw $(SUBNET_ADDRESS_RANGE_AGW)
+                          -subnet_address_range_kv $(SUBNET_ADDRESS_RANGE_KV)
+                          -subnet_address_range_web $(SUBNET_ADDRESS_RANGE_WEB)
+                          -subnet_address_range_sql $(SUBNET_ADDRESS_RANGE_SQL)
+                          -agw_sku_name $(AGW_SKU_NAME)
+                          -agw_sku_tier $(AGW_SKU_TIER)
+                          -agw_sku_capacity $(AGW_SKU_CAPACITY)"
+      deploymentMode: Incremental
+    displayName: Deploy Azure resources to the environment

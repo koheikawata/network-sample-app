@@ -13,16 +13,30 @@ variables:
   # Key Vault
   - name: KEYVAULT_SKU
     value: 'standard'
-  - name: KV_AGW_CERT_NAME
-    value: 'agwCert'
-  # Public IP Address
-  - name: Domain_NAME_LABEL
-    value: 'sampletravelapp'
+  - name: KVCERT_NAME_AGW
+    value: 'agwcert'
+  - name: KVSECRET_NAME_SQLADMIN
+    value: 'sqladminpassword'
+  - name: KVSECRET_NAME_SQLCS
+    value: 'sqlconnectionstring'
+  # SQL Database
+  - name: SQLDB_SKU_NAME
+    value: "Basic"
+  - name: SQLDB_SKU_TIER
+    value: "Basic"
+  - name: SQL_ADMIN_LOGIN_NAME
+    value: "SampleAdmin"
   # Virtual Network
   - name: VNET_ADDRESS_SPACE
     value: '10.0.0.0/16'
-  - name: AGW_SNET_ADDRESS_RANGE
+  - name: SUBNET_ADDRESS_RANGE_AGW
     value: '10.0.0.0/24'
+  - name: SUBNET_ADDRESS_RANGE_KV
+    value: '10.0.1.0/24'
+  - name: SUBNET_ADDRESS_RANGE_WEB
+    value: '10.0.2.0/24'
+  - name: SUBNET_ADDRESS_RANGE_SQL
+    value: '10.0.3.0/24'
   # Application Gateway
   - name: AGW_SKU_NAME
     value: 'Standard_v2'

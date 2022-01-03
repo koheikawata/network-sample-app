@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TravelApi", "TravelApi\TravelApi.csproj", "{223B2D7A-BDB1-44EC-BA67-68D19D2C6989}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TravelApiSql", "TravelApiSql\TravelApiSql.csproj", "{1DC4D2B1-FF3F-4276-B70C-E174B7F06499}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{223B2D7A-BDB1-44EC-BA67-68D19D2C6989}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{223B2D7A-BDB1-44EC-BA67-68D19D2C6989}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{223B2D7A-BDB1-44EC-BA67-68D19D2C6989}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{223B2D7A-BDB1-44EC-BA67-68D19D2C6989}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DC4D2B1-FF3F-4276-B70C-E174B7F06499}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DC4D2B1-FF3F-4276-B70C-E174B7F06499}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DC4D2B1-FF3F-4276-B70C-E174B7F06499}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DC4D2B1-FF3F-4276-B70C-E174B7F06499}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {D4ECD92D-E0A0-4F1C-85AE-E88FF6469633}
+		SolutionGuid = {31D13FEB-C10B-4687-9C8B-BD5B650C9FE2}
 	EndGlobalSection
 EndGlobal

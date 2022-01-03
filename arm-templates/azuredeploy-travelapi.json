@@ -3,119 +3,19 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
 /* Pipline Library variable group */
-    "svc_connection_object_id": {
-      "type": "string",
-      "metadata": {
-        "description": "From Pipline Library variable group"
-      }
-    },
+    "svc_connection_object_id": { "type": "string" },
 /* iac-variables-template.yml */
-    "base_name": {
-      "type": "string",
-      "maxLength": 10,
-      "minLength": 3,
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "environment_symbol": {
-      "type": "string",
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "appsrvplan_sku": {
-      "type": "string",
-      "allowedValues": [
-        "F1",
-        "D1",
-        "B1",
-        "B2",
-        "B3",
-        "S1",
-        "S2",
-        "S3"
-      ],
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "appsrv_health_path": {
-      "type": "string",
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "keyvault_sku": {
-      "type": "string",
-      "allowedValues": [
-        "standard",
-        "premium"
-      ],
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "kv_agw_cert_name": {
-      "type": "string",
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "domain_name_label": {
-      "type": "string",
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "vnet_address_space": {
-      "type": "string",
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "agw_snet_address_range": {
-      "type": "string",
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "agw_sku_name": {
-      "type": "string",
-      "allowedValues": [
-        "Standard_Large",
-        "Standard_Medium",
-        "Standard_Small",
-        "Standard_v2",
-        "WAF_Large",
-        "WAF_Medium",
-        "WAF_v2"
-      ],
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "agw_sku_tier": {
-      "type": "string",
-      "allowedValues": [
-        "Standard",
-        "Standard_v2",
-        "WAF",
-        "WAF_v2"
-      ],
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    },
-    "agw_sku_capacity": {
-      "type": "int",
-      "allowedValues": [
-        1,2,3,4,5,6,7,8,9,10
-      ],
-      "metadata": {
-        "description": "From iac-variables-template.yml"
-      }
-    }
+    "base_name": { "type": "string", "maxLength": 10, "minLength": 3 },
+    "environment_symbol": { "type": "string" },
+    "appsrvplan_sku": { "type": "string", "allowedValues": ["F1","D1", "B1","B2","B3","S1","S2","S3"] },
+    "appsrv_health_path": { "type": "string" },
+    "keyvault_sku": { "type": "string", "allowedValues": ["standard","premium"] },
+    "kvcert_name_agw": { "type": "string" },
+    "vnet_address_space": { "type": "string" },
+    "subnet_address_range_agw": { "type": "string" },
+    "agw_sku_name": { "type": "string", "allowedValues": ["Standard_Large","Standard_Medium","Standard_Small","Standard_v2","WAF_Large","WAF_Medium","WAF_v2"] },
+    "agw_sku_tier": { "type": "string", "allowedValues": ["Standard","Standard_v2","WAF","WAF_v2"] },
+    "agw_sku_capacity": { "type": "int", "allowedValues": [1,2,3,4,5,6,7,8,9,10] }
   },
   "variables": {
     "location": "[resourceGroup().location]",
@@ -128,16 +28,17 @@
     "keyvault_name": "[concat('kv-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
     "managed_identity_name": "[concat('id-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
     "public_ip_address_name": "[concat('pip-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
+    "domain_name_label": "[variables('appsrv_name')]",
     "vnet_name": "[concat('vnet-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
-    "agw_subnet_name": "[concat('snet-agw-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
+    "subnet_name_agw": "[concat('snet-agw-', parameters('base_name'), '-', parameters('environment_symbol'))]",
     "agw_name": "[concat('agw-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
-    "agw_kv_cert_secret_id": "[concat('https://', variables('keyvault_name'), '.vault.azure.net/secrets/', parameters('kv_agw_cert_name'))]",
+    "kvcert_secret_id_agw": "[concat('https://', variables('keyvault_name'), '.vault.azure.net/secrets/', parameters('kvcert_name_agw'))]",
     "user_assigned_identity": "[concat('/subscriptions/', variables('subscription_id'), '/resourcegroups/', variables('resource_group_name'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', variables('managed_identity_name'))]"
   },
   "resources": [
     {
       "type": "Microsoft.KeyVault/vaults",
-      "apiVersion": "2021-06-01-preview",
+      "apiVersion": "2019-09-01",
       "name": "[variables('keyvault_name')]",
       "location": "[variables('location')]",
       "properties": {
@@ -162,7 +63,7 @@
     },
     {
       "type": "Microsoft.KeyVault/vaults/accessPolicies",
-      "apiVersion": "2021-06-01-preview",
+      "apiVersion": "2019-09-01",
       "name": "[concat(variables('keyvault_name'), '/add')]",
       "dependsOn": [
         "[resourceId('Microsoft.KeyVault/vaults', variables('keyvault_name'))]",
@@ -205,7 +106,7 @@
         "publicIPAddressVersion": "IPv4",
         "publicIPAllocationMethod": "Static",
         "dnsSettings": {
-          "domainNameLabel": "[parameters('domain_name_label')]"
+          "domainNameLabel": "[variables('domain_name_label')]"
         }
       }
     },
@@ -222,9 +123,9 @@
         },
         "subnets": [
           {
-            "name": "[variables('agw_subnet_name')]",
+            "name": "[variables('subnet_name_agw')]",
             "properties": {
-              "addressPrefix": "[parameters('agw_snet_address_range')]",
+              "addressPrefix": "[parameters('subnet_address_range_agw')]",
               "serviceEndpoints": [
                 {
                   "service": "Microsoft.Web",
@@ -265,13 +166,13 @@
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appsrvplan_name'))]",
         "httpsOnly": "true",
         "siteConfig": {
-          "netFrameworkVersion": "v5.0",
+          "netFrameworkVersion": "v6.0",
           "http20Enabled": "true",
           "minTlsVersion": "1.2",
           "healthCheckPath": "[parameters('appsrv_health_path')]",
           "ipSecurityRestrictions": [
             {
-              "vnetSubnetResourceId": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', variables('vnet_name'), variables('agw_subnet_name'))]",
+              "vnetSubnetResourceId": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', variables('vnet_name'), variables('subnet_name_agw'))]",
               "action": "Allow",
               "priority": 100,
               "name": "AllowAppGatewaySubnet"
@@ -288,7 +189,8 @@
       "dependsOn": [
           "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managed_identity_name'))]",
           "[resourceId('Microsoft.Network/virtualNetworks', variables('vnet_name'))]",
-          "[resourceId('Microsoft.Network/publicIPAddresses', variables('public_ip_address_name'))]"
+          "[resourceId('Microsoft.Network/publicIPAddresses', variables('public_ip_address_name'))]",
+          "[resourceId('Microsoft.KeyVault/vaults/accessPolicies', variables('keyvault_name'), 'add')]"
       ],
       "identity": {
         "type": "UserAssigned",
@@ -308,7 +210,7 @@
           {
             "name": "appGatewaySslCert",
             "properties": {
-              "keyVaultSecretId": "[variables('agw_kv_cert_secret_id')]"
+              "keyVaultSecretId": "[variables('kvcert_secret_id_agw')]"
             }
           }
         ],
@@ -317,7 +219,7 @@
             "name": "appGatewayIpConfig",
             "properties": {
               "subnet": {
-                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnet_name'), variables('agw_subnet_name'))]"
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnet_name'), variables('subnet_name_agw'))]"
               }
             }
           }

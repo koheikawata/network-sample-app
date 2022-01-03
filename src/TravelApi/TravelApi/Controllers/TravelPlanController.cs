@@ -1,10 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
 using TravelApi.Models;
 
 namespace TravelApi.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     public class TravelPlanController : ControllerBase
     {
@@ -15,7 +14,7 @@ namespace TravelApi.Controllers
         [HttpGet]
         public IActionResult Get()
         {
-            List<Destination> destinations = new ()
+            List<Destination> destinations = new()
             {
                 new Destination() { Country = "France", City = "Paris", Food = "Wine", SightSeeing = "Eiffel Tower" },
                 new Destination() { Country = "Japan", City = "Tokyo", Food = "Ramen", SightSeeing = "Skytree" },
