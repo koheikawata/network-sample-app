@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+/* iac-variables-template.yml */
+    "base_name": { "type": "string", "maxLength": 10, "minLength": 3 },
+    "environment_symbol": { "type": "string" },
+    "appsrvplan_sku": { "type": "string", "allowedValues": ["F1","D1", "B1","B2","B3","S1","S2","S3"] },
+    "appsrv_health_path": { "type": "string" }
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "appsrvplan_name": "[concat('plan-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
+    "appsrv_name": "[concat('ase-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
+    "apim_name": "[concat('apim-', toLower(parameters('base_name')), '-', toLower(parameters('environment_symbol')))]",
+    "apim_service_url": "[concat('https://', variables('appsrv_name'), '.azurewebsites.net')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2021-03-01",
+      "name": "[variables('appsrvplan_name')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "[parameters('appsrvplan_sku')]"
+      },
+      "kind": "app"
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2021-03-01",
+      "name": "[variables('appsrv_name')]",
+      "location": "[variables('location')]",
+      "kind": "app",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appsrvplan_name'))]"
+      ],
+      "identity": {
+          "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appsrvplan_name'))]",
+        "httpsOnly": "true",
+        "siteConfig": {
+          "netFrameworkVersion": "v6.0",
+          "http20Enabled": "true",
+          "minTlsVersion": "1.2",
+          "healthCheckPath": "[parameters('appsrv_health_path')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.ApiManagement/service",
+      "apiVersion": "2021-08-01",
+      "name": "[variables('apim_name')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Developer",
+        "capacity": 1
+      },
+      "properties": {
+        "publisherEmail": "kokawata@microsoft.com",
+        "publisherName": "kokawata"
+      }
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/apis",
+      "apiVersion": "2021-08-01",
+      "name": "[concat(variables('apim_name'), '/travelapi')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ApiManagement/service', variables('apim_name'))]"
+      ],
+      "properties": {
+        "displayName": "TravelApi",
+        "subscriptionRequired": true,
+        "serviceUrl": "[variables('apim_service_url')]",
+        "protocols": [
+          "https"
+        ],
+        "path": ""
+      }
+    }
+  ]
+}
