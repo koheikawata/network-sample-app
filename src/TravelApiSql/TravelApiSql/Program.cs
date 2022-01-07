@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection;
 using TravelApiSql.Authentication;
 using TravelApiSql.Data;
 using TravelApiSql.Interfaces;
@@ -17,7 +18,11 @@ builder.Services.AddDbContext<TravelContext>(options =>
 builder.Services.AddScoped<IEfRepository, EfRepository>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+});
 
 var app = builder.Build();
 
